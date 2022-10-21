@@ -2,22 +2,25 @@ package com.gri.urbanfitness
 
 import android.Manifest
 import android.content.pm.PackageManager
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.View
 import android.widget.RelativeLayout
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.google.zxing.Result
 import me.dm7.barcodescanner.zxing.ZXingScannerView
 import java.io.BufferedReader
 import java.io.InputStreamReader
-import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
-import java.net.URLEncoder
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+
 
 class MainActivity : AppCompatActivity(), ZXingScannerView.ResultHandler {
     private val ZXING_CAMERA_PERMISSION = 1
@@ -45,6 +48,15 @@ class MainActivity : AppCompatActivity(), ZXingScannerView.ResultHandler {
             mScannerView?.setResultHandler(this) // Register ourselves as a handler for scan results.
             mScannerView?.startCamera() // Start camera on resume
         }
+        val executor: ExecutorService = Executors.newSingleThreadExecutor()
+        val handler = Handler(Looper.getMainLooper())
+
+        executor.execute(Runnable {
+            sendPostRequest()
+            handler.post(Runnable {
+                //UI Thread work here
+            })
+        })
     }
 
     override fun onPause() {
@@ -77,19 +89,18 @@ class MainActivity : AppCompatActivity(), ZXingScannerView.ResultHandler {
         }
     }
 
-    fun sendPostRequest(userName:String, password:String) {
-
-        var reqParam = URLEncoder.encode("username", "UTF-8") + "=" + URLEncoder.encode(userName, "UTF-8")
-        reqParam += "&" + URLEncoder.encode("password", "UTF-8") + "=" + URLEncoder.encode(password, "UTF-8")
-        val mURL = URL("<Your API Link>")
+    fun sendPostRequest() {
+        //var reqParam = URLEncoder.encode("username", "UTF-8") + "=" + URLEncoder.encode(userName, "UTF-8")
+        //reqParam += "&" + URLEncoder.encode("password", "UTF-8") + "=" + URLEncoder.encode(password, "UTF-8")
+        val mURL = URL("http://192.168.68.114:8000/api/check/83064310V")
 
         with(mURL.openConnection() as HttpURLConnection) {
             // optional default is GET
             requestMethod = "POST"
 
-            val wr = OutputStreamWriter(getOutputStream());
-            wr.write(reqParam);
-            wr.flush();
+            //val wr = OutputStreamWriter(getOutputStream());
+            //wr.write(reqParam);
+            //wr.flush();
 
             println("URL : $url")
             println("Response Code : $responseCode")
@@ -107,3 +118,4 @@ class MainActivity : AppCompatActivity(), ZXingScannerView.ResultHandler {
         }
     }
 }
+
