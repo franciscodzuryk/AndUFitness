@@ -92,7 +92,7 @@ class MainActivity : AppCompatActivity(), ZXingScannerView.ResultHandler {
     fun sendPostRequest() {
         //var reqParam = URLEncoder.encode("username", "UTF-8") + "=" + URLEncoder.encode(userName, "UTF-8")
         //reqParam += "&" + URLEncoder.encode("password", "UTF-8") + "=" + URLEncoder.encode(password, "UTF-8")
-        val mURL = URL("http://192.168.68.114:8000/api/check/83064310V")
+        val mURL = URL("http://192.168.68.103:8000/api/check/03811096L")
 
         with(mURL.openConnection() as HttpURLConnection) {
             // optional default is GET
