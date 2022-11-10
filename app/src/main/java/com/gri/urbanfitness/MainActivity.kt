@@ -7,6 +7,8 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.View
+import android.widget.Button
+import android.widget.EditText
 import android.widget.RelativeLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -25,6 +27,10 @@ import java.util.concurrent.Executors
 class MainActivity : AppCompatActivity(), ZXingScannerView.ResultHandler {
     private val ZXING_CAMERA_PERMISSION = 1
     private var mScannerView: ZXingScannerView? = null
+    private var urlText: EditText? = null
+    private var dniText: EditText? = null
+
+    val MY_PREFS_NAME = "MyPrefsFile"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,8 +43,37 @@ class MainActivity : AppCompatActivity(), ZXingScannerView.ResultHandler {
         //mScannerView?.setResultHandler(this)
         mScannerView?.setSoundEffectsEnabled(true)
         mScannerView?.setAutoFocus(true)
+
+        urlText = findViewById(R.id.urlText)
+        dniText = findViewById(R.id.dniText)
+
+        val prefs = getSharedPreferences(MY_PREFS_NAME, MODE_PRIVATE)
+        val name = prefs.getString("dni", "11222333")
+        dniText?.setText(name)
+
+        val okBtn = findViewById<Button>(R.id.button)
+        okBtn.setOnClickListener(View.OnClickListener {
+            sendRequest()
+        })
+
+        val scannBtn = findViewById<Button>(R.id.button2)
+        scannBtn.setOnClickListener(View.OnClickListener {
+            mScannerView?.setResultHandler(this)
+            mScannerView?.startCamera()
+        })
     }
 
+    fun sendRequest() {
+        val executor: ExecutorService = Executors.newSingleThreadExecutor()
+        val handler = Handler(Looper.getMainLooper())
+
+        executor.execute(Runnable {
+            sendPostRequest()
+            handler.post(Runnable {
+                Toast.makeText(this, "Gracias por venir.", Toast.LENGTH_LONG).show()
+            })
+        })
+    }
     override fun onResume() {
         super.onResume()
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
@@ -48,15 +83,6 @@ class MainActivity : AppCompatActivity(), ZXingScannerView.ResultHandler {
             mScannerView?.setResultHandler(this) // Register ourselves as a handler for scan results.
             mScannerView?.startCamera() // Start camera on resume
         }
-        val executor: ExecutorService = Executors.newSingleThreadExecutor()
-        val handler = Handler(Looper.getMainLooper())
-
-        executor.execute(Runnable {
-            sendPostRequest()
-            handler.post(Runnable {
-                //UI Thread work here
-            })
-        })
     }
 
     override fun onPause() {
@@ -64,7 +90,14 @@ class MainActivity : AppCompatActivity(), ZXingScannerView.ResultHandler {
         mScannerView?.stopCamera() // Stop camera on pause
     }
     override fun handleResult(rawResult: Result?) {
-        rawResult?.getText()?.let { Log.v("tag", it) }; // Prints scan results
+        mScannerView?.stopCamera()
+        rawResult?.getText()?.let {
+            Log.v("tag", it)
+            Toast.makeText(this, it, Toast.LENGTH_LONG).show()
+            if (it.contains("gym", ignoreCase = true)) {
+                sendRequest()
+            }
+        }; // Prints scan results
         Log.v("tag", rawResult?.getBarcodeFormat().toString()); // Prints the scan format (qrcode, pdf417 etc.)
     }
 
@@ -90,31 +123,34 @@ class MainActivity : AppCompatActivity(), ZXingScannerView.ResultHandler {
     }
 
     fun sendPostRequest() {
-        //var reqParam = URLEncoder.encode("username", "UTF-8") + "=" + URLEncoder.encode(userName, "UTF-8")
-        //reqParam += "&" + URLEncoder.encode("password", "UTF-8") + "=" + URLEncoder.encode(password, "UTF-8")
-        val mURL = URL("http://192.168.68.103:8000/api/check/03811096L")
+        val editor = getSharedPreferences(MY_PREFS_NAME, MODE_PRIVATE).edit()
+        editor.putString("dni", dniText?.text.toString())
+        editor.apply()
 
-        with(mURL.openConnection() as HttpURLConnection) {
-            // optional default is GET
-            requestMethod = "POST"
+        val url = urlText?.text.toString() + dniText?.text.toString()
+        val mURL = URL(url)
 
-            //val wr = OutputStreamWriter(getOutputStream());
-            //wr.write(reqParam);
-            //wr.flush();
+        try {
+            with(mURL.openConnection() as HttpURLConnection) {
+                requestMethod = "POST"
+                println("URL : $url")
+                println("Response Code : $responseCode")
 
-            println("URL : $url")
-            println("Response Code : $responseCode")
+                BufferedReader(InputStreamReader(inputStream)).use {
+                    val response = StringBuffer()
 
-            BufferedReader(InputStreamReader(inputStream)).use {
-                val response = StringBuffer()
-
-                var inputLine = it.readLine()
-                while (inputLine != null) {
-                    response.append(inputLine)
-                    inputLine = it.readLine()
+                    var inputLine = it.readLine()
+                    while (inputLine != null) {
+                        response.append(inputLine)
+                        inputLine = it.readLine()
+                    }
+                    println("Response : $response")
                 }
-                println("Response : $response")
             }
+        } catch (ex: Exception) {
+            this.runOnUiThread(Runnable {
+                Toast.makeText(this, ex.message, Toast.LENGTH_LONG).show()
+            })
         }
     }
 }
